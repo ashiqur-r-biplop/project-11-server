@@ -130,5 +130,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`CreativaDesignHub is sitting on port ${port}`);
+  console.log(`Creative DesignHub is sitting on port ${port}`);
 });
