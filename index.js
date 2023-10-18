@@ -49,6 +49,7 @@ async function run() {
     // await client.connect();
     // Send a ping to confirm a successful connection
     const userCollection = client.db("job-portal").collection("users");
+    const jobsCollection = client.db("job-portal").collection("jobs");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -103,15 +104,43 @@ async function run() {
       next();
     };
     app.post("/user", async (req, res) => {
-      const user = req.body;
-      // console.log(user);
-      const query = { email: user.email };
-      const existingUser = await userCollection.findOne(query);
-      if (existingUser) {
-        return res.send({ message: "user already exists" });
+      try {
+        const user = req.body;
+        // console.log(user);
+        const query = { email: user.email };
+        const existingUser = await userCollection.findOne(query);
+        if (existingUser) {
+          return res.send({ message: "user already exists" });
+        }
+        const result = await userCollection.insertOne(user);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
       }
-      const result = await userCollection.insertOne(user);
-      res.send(result);
+    });
+    app.get("/user-role/:email", verifyJWT, async (req, res) => {
+      try {
+        const email = req.params.email;
+        const findUser = await userCollection.findOne({ email: email });
+        res.send({
+          userRole: findUser.userRole,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    });
+    app.post("/job-post", async (req, res) => {
+      try {
+        const body = req.body;
+        const jobs = {
+          ...body,
+          status: "pending",
+        };
+        const result = await jobsCollection.insertOne(jobs);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
     });
 
     await client.db("admin").command({ ping: 1 });
@@ -130,5 +159,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`CreativaDesignHub is sitting on port ${port}`);
+  console.log(`jobsPortal is sitting on port ${port}`);
 });
