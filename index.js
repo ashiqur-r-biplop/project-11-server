@@ -67,7 +67,7 @@ async function run() {
       const query = { email: email };
       // console.log(query);
       const user = await userCollection.findOne(query);
-      if (user?.role !== "admin") {
+      if (user?.uerRole !== "admin") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -81,7 +81,7 @@ async function run() {
       // console.log(query);
       const user = await userCollection.findOne(query);
       // console.log(user);
-      if (user?.role !== "hiringManager") {
+      if (user?.uerRole !== "hiringManager") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -96,7 +96,7 @@ async function run() {
       // console.log(query, "email");
       const user = await userCollection.findOne(query);
       // console.log(user);
-      if (user?.role !== "jobSeeker") {
+      if (user?.uerRole !== "jobSeeker") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -121,13 +121,51 @@ async function run() {
       }
     });
 
+    // User Profile Update Done By (dev-Arif)
+    app.patch(
+      "/user-update/:email",
+      verifyJWT,
+      verifyJobSeeker,
+      async (req, res) => {
+        try {
+          const updatedUser = req.body;
+          const email = req.params.email;
+          const query = { email: email };
+          console.log(query);
+          const existingUser = await userCollection.findOne(query);
+          console.log(existingUser);
+          if (!existingUser) {
+            return res.status(404).send({ message: "User not found" });
+          }
+
+          // Remove the email field from the updatedUser to prevent it from being updated
+          console.log(updatedUser);
+          delete updatedUser.email;
+          const updateResult = await userCollection.updateOne(query, {
+            $set: updatedUser,
+          });
+
+          if (updateResult.modifiedCount === 1) {
+            res.send({ message: "User updated successfully" });
+          } else {
+            res.send({ message: "User not updated" });
+          }
+        } catch (error) {
+          console.log(error);
+          res.status(500).send({ message: "Internal server error" });
+        }
+      }
+    );
+
     // User Role
     app.get("/user-role/:email", verifyJWT, async (req, res) => {
       try {
         const email = req.params.email;
+        // console.log(email);
         const findUser = await userCollection.findOne({ email: email });
+        // console.log(findUser);
         res.send({
-          userRole: findUser.userRole,
+          role: findUser.uerRole,
         });
       } catch (error) {
         console.log(error);
@@ -163,31 +201,45 @@ async function run() {
     });
 
     // Load All Users: (dev-akash)
-    app.get('/user', async (req, res) => {
-      const cursor = userCollection.find();
-      const result = await cursor.toArray();
-      res.send(result);
-    })
+    app.get("/users", async (req, res) => {
+      try {
+        const cursor = userCollection.find();
+        const result = await cursor.toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
 
     // Load Single User: (dev-akash)
-    app.get('/user/:id', async (req, res) => {
-      const id = req.params.id;
-      const user = await userCollection.findOne({ _id: new ObjectId(id) });
-      res.send(user);
-    })
+    app.get("/user/:email", verifyJWT, verifyJobSeeker, async (req, res) => {
+      try {
+        const email = req.params.email;
+        const user = await userCollection.findOne({ email: email });
+        // console.log(user);
+        res.send(user);
+      } catch (error) {
+        console.log(error);
+      }
+    });
 
     // User Delete Method: (dev-akash)
-    app.delete('/user/:id', async (req, res) => {
-      const id = req.params.id;
-      const deleteUser = { _id: new ObjectId(id) };
-      const result = await userCollection.deleteOne(deleteUser);
-      if (result.deletedCount) {
-        res.send(result)
-      }
-      else {
-        res.send({ message: 'Something Went Wrong!' })
-      }
-    })
+    app.delete("/user/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const deleteUser = { _id: new ObjectId(id) };
+        if (deleteUser) {
+          const result = await userCollection.deleteOne(deleteUser);
+          if (result.deletedCount) {
+            res.send(result);
+          } else {
+            res.send({ message: "Something Went Wrong!" });
+          }
+        } else {
+          res.send({ message: "Something Went Wrong!" });
+        }
+      } catch (error) { }
+    });
 
     // Job Post: (dev-akash)
     app.post("/job-post", async (req, res) => {
@@ -204,19 +256,52 @@ async function run() {
       }
     });
 
-    // Get All Job Post: (dev-akash)
-    app.get('/job-post', async (req, res) => {
-      const allJobPost = jobsCollection.find();
-      const result = await allJobPost.toArray();
-      res.send(result);
-    })
+    // Get All Job: (dev-akash)
+    app.get("/all-jobs", async (req, res) => {
+      try {
+        const allJobPost = jobsCollection.find();
+        const result = await allJobPost.toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
 
     // Load Single Job: (dev-akash)
-    app.get('/job-post/:id', async (req, res) => {
-      const id = req.params.id;
-      const singleJob = await jobsCollection.findOne({ _id: new ObjectId(id) });
-      res.send(singleJob);
-    })
+    app.get("/job/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const singleJob = await jobsCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        res.send(singleJob);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // Job Update : (dev-Arif)
+    app.patch("/update-job/:jobId", async (req, res) => {
+      try {
+        const updatedJob = req.body;
+        const jobId = req.params.jobId;
+
+        const query = { _id: ObjectId(jobId) };
+        const existingJob = await jobsCollection.findOne(query);
+
+        if (!existingJob) {
+          return res.status(404).send({ message: "Job not found" });
+        }
+
+        // Update the entire job document with the new data
+        await jobsCollection.updateOne(query, { $set: updatedJob });
+
+        res.send({ message: "Job updated successfully" });
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
 
     // Job Status Update: (dev-akash)
     app.put('/approve-job/:id', async (req, res) => {
@@ -234,15 +319,14 @@ async function run() {
     });
 
     // Job Post Delete Method: (dev-akash)
-    app.delete('/job-post/:id', async (req, res) => {
+    app.delete("/delete-job/:id", async (req, res) => {
       const id = req.params.id;
       const deleteJob = { _id: new ObjectId(id) };
       const result = await jobsCollection.deleteOne(deleteJob);
       if (result.deletedCount) {
-        res.send(result)
-      }
-      else {
-        res.send({ message: 'Something Went Wrong!' })
+        res.send(result);
+      } else {
+        res.send({ message: "Something Went Wrong!" });
       }
     });
 
