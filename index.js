@@ -67,7 +67,7 @@ async function run() {
       const query = { email: email };
       // console.log(query);
       const user = await userCollection.findOne(query);
-      if (user?.role !== "admin") {
+      if (user?.uerRole !== "admin") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -81,7 +81,7 @@ async function run() {
       // console.log(query);
       const user = await userCollection.findOne(query);
       // console.log(user);
-      if (user?.role !== "hiringManager") {
+      if (user?.uerRole !== "hiringManager") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -96,7 +96,7 @@ async function run() {
       // console.log(query, "email");
       const user = await userCollection.findOne(query);
       // console.log(user);
-      if (user?.role !== "jobSeeker") {
+      if (user?.uerRole !== "jobSeeker") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -121,50 +121,50 @@ async function run() {
     });
 
     // User Profile Update Done By (dev-Arif)
-    app.patch("/user-update", async (req, res) => {
-      try {
-        const updatedUser = req.body;
+    app.patch(
+      "/user-update/:email",
+      verifyJWT,
+      verifyJobSeeker,
+      async (req, res) => {
+        try {
+          const updatedUser = req.body;
+          const email = req.params.email;
+          const query = { email: email };
+          console.log(query);
+          const existingUser = await userCollection.findOne(query);
+          console.log(existingUser);
+          if (!existingUser) {
+            return res.status(404).send({ message: "User not found" });
+          }
 
-        if (!updatedUser.email) {
-          return res
-            .status(400)
-            .send({ message: "Email is required for updating a user" });
+          // Remove the email field from the updatedUser to prevent it from being updated
+          console.log(updatedUser);
+          delete updatedUser.email;
+          const updateResult = await userCollection.updateOne(query, {
+            $set: updatedUser,
+          });
+
+          if (updateResult.modifiedCount === 1) {
+            res.send({ message: "User updated successfully" });
+          } else {
+            res.send({ message: "User not updated" });
+          }
+        } catch (error) {
+          console.log(error);
+          res.status(500).send({ message: "Internal server error" });
         }
-
-        const query = { email: updatedUser.email };
-        const existingUser = await userCollection.findOne(query);
-
-        if (!existingUser) {
-          return res.status(404).send({ message: "User not found" });
-        }
-
-        // Remove the email field from the updatedUser to prevent it from being updated
-        delete updatedUser.email;
-
-        const updateResult = await userCollection.updateOne(query, {
-          $set: updatedUser,
-        });
-
-        if (updateResult.modifiedCount === 1) {
-          res.send({ message: "User updated successfully" });
-        } else {
-          res.send({ message: "User not updated" });
-        }
-      } catch (error) {
-        console.log(error);
-        res.status(500).send({ message: "Internal server error" });
       }
-    });
+    );
 
     // User Role
     app.get("/user-role/:email", verifyJWT, async (req, res) => {
       try {
         const email = req.params.email;
-        console.log(email);
+        // console.log(email);
         const findUser = await userCollection.findOne({ email: email });
-        console.log(findUser);
+        // console.log(findUser);
         res.send({
-          userRole: findUser.userRole,
+          role: findUser.uerRole,
         });
       } catch (error) {
         console.log(error);
@@ -183,10 +183,11 @@ async function run() {
     });
 
     // Load Single User: (dev-akash)
-    app.get("/user/:id", async (req, res) => {
+    app.get("/user/:email", verifyJWT, verifyJobSeeker, async (req, res) => {
       try {
-        const id = req.params.id;
-        const user = await userCollection.findOne({ _id: new ObjectId(id) });
+        const email = req.params.email;
+        const user = await userCollection.findOne({ email: email });
+        // console.log(user);
         res.send(user);
       } catch (error) {
         console.log(error);
