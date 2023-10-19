@@ -121,7 +121,9 @@ async function run() {
     app.get("/user-role/:email", verifyJWT, async (req, res) => {
       try {
         const email = req.params.email;
+        console.log(email);
         const findUser = await userCollection.findOne({ email: email });
+        console.log(findUser);
         res.send({
           userRole: findUser.userRole,
         });
