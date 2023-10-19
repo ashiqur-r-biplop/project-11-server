@@ -103,6 +103,7 @@ async function run() {
       }
       next();
     };
+
     app.post("/user", async (req, res) => {
       try {
         const user = req.body;
@@ -118,6 +119,44 @@ async function run() {
         console.log(error);
       }
     });
+
+// User Profile Update Done By (dev-Arif)
+   app.patch("/userUpdate", async (req, res) => {
+     try {
+       const updatedUser = req.body;
+
+       if (!updatedUser.email) {
+         return res
+           .status(400)
+           .send({ message: "Email is required for updating a user" });
+       }
+
+       const query = { email: updatedUser.email };
+       const existingUser = await userCollection.findOne(query);
+
+       if (!existingUser) {
+         return res.status(404).send({ message: "User not found" });
+       }
+
+       // Remove the email field from the updatedUser to prevent it from being updated
+       delete updatedUser.email;
+
+       const updateResult = await userCollection.updateOne(query, {
+         $set: updatedUser,
+       });
+
+       if (updateResult.modifiedCount === 1) {
+         res.send({ message: "User updated successfully" });
+       } else {
+         res.send({ message: "User not updated" });
+       }
+     } catch (error) {
+       console.log(error);
+       res.status(500).send({ message: "Internal server error" });
+     }
+   });
+
+    // User Role
     app.get("/user-role/:email", verifyJWT, async (req, res) => {
       try {
         const email = req.params.email;
@@ -131,6 +170,35 @@ async function run() {
         console.log(error);
       }
     });
+
+    // Load All Users: (dev-akash)
+    app.get('/user', async (req, res) => {
+      const cursor = userCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+    // Load Single User: (dev-akash)
+    app.get('/user/:id', async (req, res) => {
+      const id = req.params.id;
+      const user = await userCollection.findOne({ _id: new ObjectId(id) });
+      res.send(user);
+    })
+
+    // User Delete Method: (dev-akash)
+    app.delete('/user/:id', async (req, res) => {
+      const id = req.params.id;
+      const deleteUser = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(deleteUser);
+      if (result.deletedCount) {
+        res.send(result)
+      }
+      else {
+        res.send({ message: 'Something Went Wrong!' })
+      }
+    })
+
+    // Job Post: (dev-akash)
     app.post("/job-post", async (req, res) => {
       try {
         const body = req.body;
@@ -145,6 +213,57 @@ async function run() {
       }
     });
 
+    // Get All Job Post: (dev-akash)
+    app.get('/job-post', async (req, res) => {
+      const allJobPost = jobsCollection.find();
+      const result = await allJobPost.toArray();
+      res.send(result);
+    })
+
+    // Load Single Job: (dev-akash)
+    app.get('/job-post/:id', async (req, res) => {
+      const id = req.params.id;
+      const singleJob = await jobsCollection.findOne({ _id: new ObjectId(id) });
+      res.send(singleJob);
+    });
+
+    // Job Update : (dev-Arif)
+    app.patch("/job/:jobId", async (req, res) => {
+      try {
+        const updatedJob = req.body;
+        const jobId = req.params.jobId;
+
+        const query = { _id: ObjectId(jobId) };
+        const existingJob = await jobsCollection.findOne(query);
+
+        if (!existingJob) {
+          return res.status(404).send({ message: "Job not found" });
+        }
+
+        // Update the entire job document with the new data
+        await jobsCollection.updateOne(query, { $set: updatedJob });
+
+        res.send({ message: "Job updated successfully" });
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
+
+    // Job Post Delete Method: (dev-akash)
+    app.delete('/job-post/:id', async (req, res) => {
+      const id = req.params.id;
+      const deleteJob = { _id: new ObjectId(id) };
+      const result = await jobsCollection.deleteOne(deleteJob);
+      if (result.deletedCount) {
+        res.send(result)
+      }
+      else {
+        res.send({ message: 'Something Went Wrong!' })
+      }
+    })
+
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
@@ -152,7 +271,6 @@ async function run() {
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
-    // bipu
   }
 }
 run().catch(console.dir);
@@ -162,5 +280,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`jobsPortal is sitting on port ${port}`);
+  console.log(`Job Portal is sitting on port ${port}`);
 });
