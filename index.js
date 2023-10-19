@@ -104,6 +104,7 @@ async function run() {
       next();
     };
 
+    //User Create:
     app.post("/user", async (req, res) => {
       try {
         const user = req.body;
@@ -130,6 +131,34 @@ async function run() {
         });
       } catch (error) {
         console.log(error);
+      }
+    });
+
+    // User Role Update:(dev-akash)
+    app.put('/update-user/:id', async (req, res) => {
+      const id = req.params.id;
+      const user = req.body;
+      console.log(updateStatus.body);
+      const filter = { _id: new ObjectId(id) }
+      const options = { upsert: true };
+      // create a document that sets the plot of the movie
+      if (user.userRole === 'admin') {
+        const updateDoc = {
+          $set: {
+            userRole: 'admin'
+          },
+        };
+        const result = await userCollection.updateOne(filter, updateDoc, options);
+        res.json(result)
+      }
+      else if (user.userRole === 'hiringManager') {
+        const updateDoc = {
+          $set: {
+            userRole: 'hiringManager'
+          },
+        };
+        const result = await userCollection.updateOne(filter, updateDoc, options);
+        res.json(result)
       }
     });
 
@@ -189,6 +218,21 @@ async function run() {
       res.send(singleJob);
     })
 
+    // Job Status Update: (dev-akash)
+    app.put('/approve-job/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) }
+      const options = { upsert: true };
+      // create a document that sets the plot of the movie
+      const updateDoc = {
+        $set: {
+          status: 'active'
+        },
+      };
+      const result = await jobsCollection.updateOne(filter, updateDoc, options);
+      res.json(result)
+    });
+
     // Job Post Delete Method: (dev-akash)
     app.delete('/job-post/:id', async (req, res) => {
       const id = req.params.id;
@@ -199,6 +243,16 @@ async function run() {
       }
       else {
         res.send({ message: 'Something Went Wrong!' })
+      }
+    });
+
+    // Apply Job Information(Applicant, JobID): dev-akash:
+    app.post('/applicants', async (req, res) => {
+      try {
+        const applicant = req.body;
+        console.log(applicant);
+      } catch (error) {
+
       }
     })
 
