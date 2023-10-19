@@ -120,6 +120,42 @@ async function run() {
       }
     });
 
+// User Profile Update Done By (dev-Arif)
+   app.patch("/userUpdate", async (req, res) => {
+     try {
+       const updatedUser = req.body;
+
+       if (!updatedUser.email) {
+         return res
+           .status(400)
+           .send({ message: "Email is required for updating a user" });
+       }
+
+       const query = { email: updatedUser.email };
+       const existingUser = await userCollection.findOne(query);
+
+       if (!existingUser) {
+         return res.status(404).send({ message: "User not found" });
+       }
+
+       // Remove the email field from the updatedUser to prevent it from being updated
+       delete updatedUser.email;
+
+       const updateResult = await userCollection.updateOne(query, {
+         $set: updatedUser,
+       });
+
+       if (updateResult.modifiedCount === 1) {
+         res.send({ message: "User updated successfully" });
+       } else {
+         res.send({ message: "User not updated" });
+       }
+     } catch (error) {
+       console.log(error);
+       res.status(500).send({ message: "Internal server error" });
+     }
+   });
+
     // User Role
     app.get("/user-role/:email", verifyJWT, async (req, res) => {
       try {
@@ -187,7 +223,30 @@ async function run() {
       const id = req.params.id;
       const singleJob = await jobsCollection.findOne({ _id: new ObjectId(id) });
       res.send(singleJob);
-    })
+    });
+
+    // Job Update : (dev-Arif)
+    app.patch("/job/:jobId", async (req, res) => {
+      try {
+        const updatedJob = req.body;
+        const jobId = req.params.jobId;
+
+        const query = { _id: ObjectId(jobId) };
+        const existingJob = await jobsCollection.findOne(query);
+
+        if (!existingJob) {
+          return res.status(404).send({ message: "Job not found" });
+        }
+
+        // Update the entire job document with the new data
+        await jobsCollection.updateOne(query, { $set: updatedJob });
+
+        res.send({ message: "Job updated successfully" });
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
 
     // Job Post Delete Method: (dev-akash)
     app.delete('/job-post/:id', async (req, res) => {
