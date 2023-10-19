@@ -49,6 +49,7 @@ async function run() {
     // await client.connect();
     // Send a ping to confirm a successful connection
     const userCollection = client.db("job-portal").collection("users");
+    const jobsCollection = client.db("job-portal").collection("jobs");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -102,19 +103,106 @@ async function run() {
       }
       next();
     };
+
     app.post("/user", async (req, res) => {
-      const user = req.body;
-      // console.log(user);
-      const query = { email: user.email };
-      const existingUser = await userCollection.findOne(query);
-      if (existingUser) {
-        return res.send({ message: "user already exists" });
+      try {
+        const user = req.body;
+        // console.log(user);
+        const query = { email: user.email };
+        const existingUser = await userCollection.findOne(query);
+        if (existingUser) {
+          return res.send({ message: "user already exists" });
+        }
+        const result = await userCollection.insertOne(user);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
       }
-      const result = await userCollection.insertOne(user);
-      res.send(result);
     });
 
-    
+    // User Role
+    app.get("/user-role/:email", verifyJWT, async (req, res) => {
+      try {
+        const email = req.params.email;
+        const findUser = await userCollection.findOne({ email: email });
+        res.send({
+          userRole: findUser.userRole,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // Load All Users: (dev-akash)
+    app.get('/user', async (req, res) => {
+      const cursor = userCollection.find();
+      const result = await cursor.toArray();
+      res.send(result);
+    })
+
+    // Load Single User: (dev-akash)
+    app.get('/user/:id', async (req, res) => {
+      const id = req.params.id;
+      const user = await userCollection.findOne({ _id: new ObjectId(id) });
+      res.send(user);
+    })
+
+    // User Delete Method: (dev-akash)
+    app.delete('/user/:id', async (req, res) => {
+      const id = req.params.id;
+      const deleteUser = { _id: new ObjectId(id) };
+      const result = await userCollection.deleteOne(deleteUser);
+      if (result.deletedCount) {
+        res.send(result)
+      }
+      else {
+        res.send({ message: 'Something Went Wrong!' })
+      }
+    })
+
+    // Job Post: (dev-akash)
+    app.post("/job-post", async (req, res) => {
+      try {
+        const body = req.body;
+        const jobs = {
+          ...body,
+          status: "pending",
+        };
+        const result = await jobsCollection.insertOne(jobs);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // Get All Job Post: (dev-akash)
+    app.get('/job-post', async (req, res) => {
+      const allJobPost = jobsCollection.find();
+      const result = await allJobPost.toArray();
+      res.send(result);
+    })
+
+    // Load Single Job: (dev-akash)
+    app.get('/job-post/:id', async (req, res) => {
+      const id = req.params.id;
+      const singleJob = await jobsCollection.findOne({ _id: new ObjectId(id) });
+      res.send(singleJob);
+    })
+
+    // Job Post Delete Method: (dev-akash)
+    app.delete('/job-post/:id', async (req, res) => {
+      const id = req.params.id;
+      const deleteJob = { _id: new ObjectId(id) };
+      const result = await jobsCollection.deleteOne(deleteJob);
+      if (result.deletedCount) {
+        res.send(result)
+      }
+      else {
+        res.send({ message: 'Something Went Wrong!' })
+      }
+    })
+
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
@@ -131,5 +219,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`CreativaDesignHub is sitting on port ${port}`);
+  console.log(`Job Portal is sitting on port ${port}`);
 });
