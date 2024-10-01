@@ -49,6 +49,7 @@ async function run() {
     // await client.connect();
     // Send a ping to confirm a successful connection
     const userCollection = client.db("job-portal").collection("users");
+    const jobsCollection = client.db("job-portal").collection("jobs");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -66,7 +67,7 @@ async function run() {
       const query = { email: email };
       // console.log(query);
       const user = await userCollection.findOne(query);
-      if (user?.role !== "admin") {
+      if (user?.uerRole !== "admin") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -80,7 +81,7 @@ async function run() {
       // console.log(query);
       const user = await userCollection.findOne(query);
       // console.log(user);
-      if (user?.role !== "hiringManager") {
+      if (user?.uerRole !== "hiringManager") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
@@ -95,23 +96,253 @@ async function run() {
       // console.log(query, "email");
       const user = await userCollection.findOne(query);
       // console.log(user);
-      if (user?.role !== "jobSeeker") {
+      if (user?.uerRole !== "jobSeeker") {
         return res
           .status(403)
           .send({ error: true, message: "forbidden message" });
       }
       next();
     };
+
+    //User Create:
     app.post("/user", async (req, res) => {
-      const user = req.body;
-      // console.log(user);
-      const query = { email: user.email };
-      const existingUser = await userCollection.findOne(query);
-      if (existingUser) {
-        return res.send({ message: "user already exists" });
+      try {
+        const user = req.body;
+        // console.log(user);
+        const query = { email: user.email };
+        const existingUser = await userCollection.findOne(query);
+        if (existingUser) {
+          return res.send({ message: "user already exists" });
+        }
+        const result = await userCollection.insertOne(user);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
       }
-      const result = await userCollection.insertOne(user);
-      res.send(result);
+    });
+
+    // User Profile Update Done By (dev-Arif)
+    app.patch(
+      "/user-update/:email",
+      verifyJWT,
+      verifyJobSeeker,
+      async (req, res) => {
+        try {
+          const updatedUser = req.body;
+          const email = req.params.email;
+          const query = { email: email };
+          console.log(query);
+          const existingUser = await userCollection.findOne(query);
+          console.log(existingUser);
+          if (!existingUser) {
+            return res.status(404).send({ message: "User not found" });
+          }
+
+          // Remove the email field from the updatedUser to prevent it from being updated
+          console.log(updatedUser);
+          delete updatedUser.email;
+          const updateResult = await userCollection.updateOne(query, {
+            $set: updatedUser,
+          });
+
+          if (updateResult.modifiedCount === 1) {
+            res.send({ message: "User updated successfully" });
+          } else {
+            res.send({ message: "User not updated" });
+          }
+        } catch (error) {
+          console.log(error);
+          res.status(500).send({ message: "Internal server error" });
+        }
+      }
+    );
+
+    // User Role
+    app.get("/user-role/:email", verifyJWT, async (req, res) => {
+      try {
+        const email = req.params.email;
+        // console.log(email);
+        const findUser = await userCollection.findOne({ email: email });
+        // console.log(findUser);
+        res.send({
+          role: findUser.uerRole,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // User Role Update:(dev-akash)
+    app.put("/update-user/:id", async (req, res) => {
+      const id = req.params.id;
+      const user = req.body;
+      console.log(updateStatus.body);
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      // create a document that sets the plot of the movie
+      if (user.userRole === "admin") {
+        const updateDoc = {
+          $set: {
+            userRole: "admin",
+          },
+        };
+        const result = await userCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.json(result);
+      } else if (user.userRole === "hiringManager") {
+        const updateDoc = {
+          $set: {
+            userRole: "hiringManager",
+          },
+        };
+        const result = await userCollection.updateOne(
+          filter,
+          updateDoc,
+          options
+        );
+        res.json(result);
+      }
+    });
+
+    // Load All Users: (dev-akash)
+    app.get("/users", async (req, res) => {
+      try {
+        const cursor = userCollection.find();
+        const result = await cursor.toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // Load Single User: (dev-akash)
+    app.get("/user/:email", verifyJWT, verifyJobSeeker, async (req, res) => {
+      try {
+        const email = req.params.email;
+        const user = await userCollection.findOne({ email: email });
+        // console.log(user);
+        res.send(user);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // User Delete Method: (dev-akash)
+    app.delete("/user/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const deleteUser = { _id: new ObjectId(id) };
+        if (deleteUser) {
+          const result = await userCollection.deleteOne(deleteUser);
+          if (result.deletedCount) {
+            res.send(result);
+          } else {
+            res.send({ message: "Something Went Wrong!" });
+          }
+        } else {
+          res.send({ message: "Something Went Wrong!" });
+        }
+      } catch (error) {}
+    });
+
+    // Job Post: (dev-akash)
+    app.post("/job-post", async (req, res) => {
+      try {
+        const body = req.body;
+        const jobs = {
+          ...body,
+          status: "pending",
+        };
+        const result = await jobsCollection.insertOne(jobs);
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // Get All Job: (dev-akash)
+    app.get("/all-jobs", async (req, res) => {
+      try {
+        const allJobPost = jobsCollection.find();
+        const result = await allJobPost.toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // Load Single Job: (dev-akash)
+    app.get("/job/:id", async (req, res) => {
+      try {
+        const id = req.params.id;
+        const singleJob = await jobsCollection.findOne({
+          _id: new ObjectId(id),
+        });
+        res.send(singleJob);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+
+    // Job Update : (dev-Arif)
+    app.patch("/update-job/:jobId", async (req, res) => {
+      try {
+        const updatedJob = req.body;
+        const jobId = req.params.jobId;
+
+        const query = { _id: ObjectId(jobId) };
+        const existingJob = await jobsCollection.findOne(query);
+
+        if (!existingJob) {
+          return res.status(404).send({ message: "Job not found" });
+        }
+
+        // Update the entire job document with the new data
+        await jobsCollection.updateOne(query, { $set: updatedJob });
+
+        res.send({ message: "Job updated successfully" });
+      } catch (error) {
+        console.log(error);
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
+
+    // Job Status Update: (dev-akash)
+    app.put("/approve-job/:id", async (req, res) => {
+      const id = req.params.id;
+      const filter = { _id: new ObjectId(id) };
+      const options = { upsert: true };
+      // create a document that sets the plot of the movie
+      const updateDoc = {
+        $set: {
+          status: "active",
+        },
+      };
+      const result = await jobsCollection.updateOne(filter, updateDoc, options);
+      res.json(result);
+    });
+
+    // Job Post Delete Method: (dev-akash)
+    app.delete("/delete-job/:id", async (req, res) => {
+      const id = req.params.id;
+      const deleteJob = { _id: new ObjectId(id) };
+      const result = await jobsCollection.deleteOne(deleteJob);
+      if (result.deletedCount) {
+        res.send(result);
+      } else {
+        res.send({ message: "Something Went Wrong!" });
+      }
+    });
+
+    // Apply Job Information(Applicant, JobID): dev-akash:
+    app.post("/applicants", async (req, res) => {
+      try {
+        const applicant = req.body;
+        console.log(applicant);
+      } catch (error) {}
     });
 
     await client.db("admin").command({ ping: 1 });
@@ -130,5 +361,5 @@ app.get("/", async (req, res) => {
 });
 
 app.listen(port, () => {
-  console.log(`CreativaDesignHub is sitting on port ${port}`);
+  console.log(`Job Portal is sitting on port ${port}`);
 });
