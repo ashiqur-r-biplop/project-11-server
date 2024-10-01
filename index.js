@@ -50,6 +50,9 @@ async function run() {
     // Send a ping to confirm a successful connection
     const userCollection = client.db("job-portal").collection("users");
     const jobsCollection = client.db("job-portal").collection("jobs");
+    const applyJobsCollection = client
+      .db("job-portal")
+      .collection("apply-jobs");
 
     app.post("/jwt", (req, res) => {
       const user = req.body;
@@ -208,7 +211,7 @@ async function run() {
     });
 
     // Load All Users: (dev-akash)
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
       try {
         const cursor = userCollection.find();
         const result = await cursor.toArray();
@@ -264,9 +267,33 @@ async function run() {
     });
 
     // Get All Job: (dev-akash)
-    app.get("/all-jobs", async (req, res) => {
+    app.get("/all-jobs", verifyJWT, verifyAdmin, async (req, res) => {
       try {
         const allJobPost = jobsCollection.find();
+        const result = await allJobPost.toArray();
+        res.send(result);
+      } catch (error) {
+        console.log(error);
+      }
+    });
+    app.get(
+      "/my-jobs/:email",
+      verifyJWT,
+      verifyHiringManager,
+      async (req, res) => {
+        try {
+          const email = req.params.email;
+          const allJobPost = jobsCollection.find({ contactEmail: email });
+          const result = await allJobPost.toArray();
+          res.send(result);
+        } catch (error) {
+          console.log(error);
+        }
+      }
+    );
+    app.get("/all-jobs-user", async (req, res) => {
+      try {
+        const allJobPost = jobsCollection.find({ status: "approved" });
         const result = await allJobPost.toArray();
         res.send(result);
       } catch (error) {
@@ -326,7 +353,7 @@ async function run() {
     });
 
     // Job Post Delete Method: (dev-akash)
-    app.delete("/delete-job/:id", async (req, res) => {
+    app.delete("/delete-job/:id", verifyJWT, verifyAdmin, async (req, res) => {
       const id = req.params.id;
       const deleteJob = { _id: new ObjectId(id) };
       const result = await jobsCollection.deleteOne(deleteJob);
